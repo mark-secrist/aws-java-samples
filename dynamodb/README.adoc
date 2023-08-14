@@ -23,7 +23,18 @@ unmarshalled to DynamoDB tables.
 
 [source, java]
 ----
-include::blob/370c562b19da3b05a0d3141e3dfb1fb6f6637d00/dynamodb/src/main/java/com/dev2cloud/ddb_demo/NotesRepository.java[lines=26..34]
+   public void putItem(String userId, Integer noteId, String note) {
+        HashMap<String,AttributeValue> itemValues = new HashMap<>(); // <1>
+        itemValues.put("UserId", AttributeValue.builder().s(userId).build()); // <2>
+        itemValues.put("NoteId", AttributeValue.builder().n(noteId.toString()).build()); // <3>
+        itemValues.put("Notes", AttributeValue.builder().s(note).build());
+        PutItemRequest request = PutItemRequest.builder()
+                .tableName(TABLE_NAME)
+                .item(itemValues)
+                .build();
 ----
+<1> AttributeValue is a helper class provided by the DynamoDB SDK
+<2> Passing a string in and marking as such
+<3> Numeric values are passed in as String but marked as a numeric
 
 === Using the Enhanced Client
