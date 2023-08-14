@@ -37,4 +37,85 @@ unmarshalled to DynamoDB tables.
 <2> Passing a string in and marking as such
 <3> Numeric values are passed in as String but marked as a numeric
 
+Queries are also slightly more complicated as they may involve passing
+in partial elements of the partition key as well as the sort key.
+
+[source, java]
+----
+        HashMap<String, AttributeValue> attrValues = new HashMap<>();
+        attrValues.put(":v_UserId", AttributeValue.builder().s(userId).build()); // <1>
+
+        QueryRequest queryRequest = QueryRequest.builder()
+                .tableName(TABLE_NAME)
+                .keyConditionExpression("UserId = :v_UserId") // <2>
+                .expressionAttributeValues(attrValues)
+                .build();
+
+----
+<1> This is similar to a named query parameter we called 'v_UserId'
+<2> The key condition expression allows some flexibility for comparison
+
 === Using the Enhanced Client
+
+With the Enhanced Client, the repository implementation can become a bit
+more sophisticated.
+This is done by defining a container class representing the object data being stored.
+In this case, a `NotesItem` class is defined that contains the attributes found in
+the _Notes_ table.
+Then, a series of annotations are used to designate the class as a DynamoDB bean class
+and to mark the appropriate attributes as either _PartitionKey_ attribute or _SortKey_
+attribute.
+In addition, it is possible to map class field names to table attribute names, which can
+be quite helpful when you want to decouple the implementation code from the DynamoDB
+table definition.
+
+[source, java]
+----
+@DynamoDbBean
+public class NotesItem {
+...
+    @DynamoDbPartitionKey
+    @DynamoDbAttribute("UserId")
+    public String getUserId() {
+        return this.userId;
+    }
+
+    @DynamoDbSortKey
+    @DynamoDbAttribute("NoteId")
+    public Integer getNoteId() {
+        return this.noteId;
+    }
+...
+}
+----
+
+=== Creating the DynamoDB table
+
+To run these code samples, it will be necessary to create a table
+You can do this via the AWS CLI quite easily from either Linux/MacOS or Windows.
+
+NOTE: This is the same table definition used in Lab 4 of the _Developing on AWS_
+course.
+
+*Linux*
+[source, bash]
+----
+aws dynamodb create-table \
+  --table-name Notes \
+  --attribute-definitions AttributeName=UserId,AttributeType=S AttributeName=NoteId,AttributeType=N \
+  --key-schema AttributeName=UserId,KeyType=HASH AttributeName=NoteId,KeyType=RANGE \
+  --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5
+
+----
+
+*Windows*
+[source, bash]
+----
+aws dynamodb create-table ^
+  --table-name Notes ^
+  --attribute-definitions AttributeName=UserId,AttributeType=S AttributeName=NoteId,AttributeType=N ^
+  --key-schema AttributeName=UserId,KeyType=HASH AttributeName=NoteId,KeyType=RANGE ^
+  --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5
+
+----
+
