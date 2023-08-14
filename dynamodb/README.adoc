@@ -23,7 +23,7 @@ unmarshalled to DynamoDB tables.
 
 [source, java]
 ----
-include::src/main/java/com/dev2cloud/ddb_demo/NotesRepository.java[lines=26..34]
+include::blob/370c562b19da3b05a0d3141e3dfb1fb6f6637d00/dynamodb/src/main/java/com/dev2cloud/ddb_demo/NotesRepository.java[lines=26..34]
 ----
 
 === Using the Enhanced Client
