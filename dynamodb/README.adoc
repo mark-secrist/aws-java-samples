@@ -1,0 +1,29 @@
+= Notes on DynamoDB using Java v2 SDK
+
+== Introduction
+
+There are two ways to interact with DynamoDB using the Java SDK.
+Actually, there are three technically if you count the low level API.
+Generally though, you will want to use one of the two higher level APIs.
+
+The standard SDK approach relies on `HashMap<String, AttributeValue>`, where
+the `AttributeValue` class is a container class used to manage the various
+attribute types that can be supported by DynamoDB.
+
+The other approach uses the new _Enhanced Client_ class to allow for object
+mapping using annotations.
+
+These examples show both approaches.
+
+=== Standard SDK approach
+
+This approach requires a bit more translation between how the data might be
+represented within the application and how it is effectively marshalled or
+unmarshalled to DynamoDB tables.
+
+[source, java]
+----
+include::src/main/java/com/dev2cloud/ddb_demo/NotesRepository.java[lines=26..34]
+----
+
+=== Using the Enhanced Client
