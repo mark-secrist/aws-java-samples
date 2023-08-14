@@ -89,10 +89,28 @@ public class NotesItem {
 }
 ----
 
+The table 'schema' association is accomplished by registering the mapping class shown
+above with the enhanced client.
+
+[source, java]
+----
+       enhancedClient = DynamoDbEnhancedClient.create();
+       notesTable = enhancedClient.table("Notes", TableSchema.fromBean(NotesItem.class));
+----
+
+Once this is completed, puts and gets are a single line of code (not counting exception handling).
+
+[source,java]
+----
+notesTable.putItem(notesItem);
+----
+
 === Creating the DynamoDB table
 
-To run these code samples, it will be necessary to create a table
+To run these code samples, it will be necessary to first create a table.
 You can do this via the AWS CLI quite easily from either Linux/MacOS or Windows.
+It is also possible to do this via the SDK but this has not been implemented as of
+yet.
 
 NOTE: This is the same table definition used in Lab 4 of the _Developing on AWS_
 course.
