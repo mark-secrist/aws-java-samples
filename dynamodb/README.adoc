@@ -105,7 +105,7 @@ Once this is completed, puts and gets are a single line of code (not counting ex
 notesTable.putItem(notesItem);
 ----
 
-=== Creating the DynamoDB table
+== Creating the DynamoDB table
 
 To run these code samples, it will be necessary to first create a table.
 You can do this via the AWS CLI quite easily from either Linux/MacOS or Windows.
@@ -137,3 +137,12 @@ aws dynamodb create-table ^
 
 ----
 
+== References
+
+The code in this repository was written based on examples found in a variety
+of sources, including the following.
+
+* https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/examples-dynamodb.html
+* https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/dynamodb-enhanced-client.html
+* https://github.com/awsdocs/aws-doc-sdk-examples/tree/main/java/example_code
+* https://sdk.amazonaws.com/java/api/latest/software/amazon/awssdk/services/dynamodb/DynamoDbClient.html
