@@ -1,39 +1,58 @@
 package org.example;
 
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.waiters.WaiterResponse;
 import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.regions.providers.AwsProfileRegionProvider;
+import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
 import software.amazon.awssdk.services.s3.waiters.S3Waiter;
 
+
 public class Main {
     public static void main(String[] args) {
-        // Create Credentials provider using the default provider (in ~/.aws/config
-        //ProfileCredentialsProvider credentialsProvider = ProfileCredentialsProvider.create();
-        //S3Client s3Client = S3Client.builder().region(Region.US_WEST_2).credentialsProvider(credentialsProvider).build();
-        ProfileCredentialsProvider credentialsProvider = ProfileCredentialsProvider.create();
-        Region region = Region.US_EAST_1;
+        Logger logger = LogManager.getLogger(Main.class);
+        var profile = "app-user";
+
+        // Create Credentials provider using the default profile (in ~/.aws/config
+        // ProfileCredentialsProvider credentialsProvider = ProfileCredentialsProvider.create();
+        // Create Credentials provider using the specified profile
+        ProfileCredentialsProvider credentialsProvider = ProfileCredentialsProvider.create(profile);
+
+        // Load Region from default config file for specified profile
+        var regionProvider =  new AwsProfileRegionProvider(null, profile);
+                var region = regionProvider.getRegion();
+        logger.log(Level.DEBUG, "Region = " + region);
+
+        logger.log(Level.INFO, "Starting using profile - " + profile);
+
         S3Client s3Client = S3Client.builder()
                 // Region is optional and if specified may impact requests for list objects in S3 bucket not in
                 // specified region
-                //.region(region)
+                .region(region)
                 .credentialsProvider(credentialsProvider)
                 .build();
 
+        logger.log(Level.DEBUG, "Listing bucket objects...");
 
         // List the buckets
-        listBuckets(s3Client);
+        //listBuckets(s3Client);
 
         // List objects in mark-bucket-2
         var bucketName = "marks-web";
+//        var bucketName = "fileserver-backup-ms7037";
         //var bucketName = "cf-templates-142hd9b6p9a8s-us-west-2";
         listBucketObjects(s3Client, bucketName);
 
         var newBucket = "mark-test-9702144567";
-        createBucket(s3Client, newBucket);
+        //createBucket(s3Client, newBucket);
 
         s3Client.close();;
     }
