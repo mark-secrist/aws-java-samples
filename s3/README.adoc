@@ -7,6 +7,9 @@ Code samples to illustrate the use of the S3 SDK
 * There is a general pattern of creating a *Request object and returning a *Result object
 * You must be cautious about performing a task on an S3 bucket when the region
 is set differently from the bucket region being operated on
+* A new feature added in SDK 2.20.111 added a new method `crossRegionAccessEnabled()` that allows more
+flexibility when dealing with buckets outside the configured region. This includes listBuckets
+listBucketObjects, getObject,etc.
 
 == Resources
 

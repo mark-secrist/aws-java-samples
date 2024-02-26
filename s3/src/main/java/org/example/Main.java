@@ -3,26 +3,29 @@ package org.example;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.waiters.WaiterResponse;
-import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.regions.providers.AwsProfileRegionProvider;
-import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
 import software.amazon.awssdk.services.s3.waiters.S3Waiter;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 
 public class Main {
     public static void main(String[] args) {
         Logger logger = LogManager.getLogger(Main.class);
         var profile = "app-user";
+        //var profile = "default";
 
         // Create Credentials provider using the default profile (in ~/.aws/config
         // ProfileCredentialsProvider credentialsProvider = ProfileCredentialsProvider.create();
+
         // Create Credentials provider using the specified profile
         ProfileCredentialsProvider credentialsProvider = ProfileCredentialsProvider.create(profile);
 
@@ -35,33 +38,39 @@ public class Main {
 
         S3Client s3Client = S3Client.builder()
                 // Region is optional and if specified may impact requests for list objects in S3 bucket not in
-                // specified region
+                // as well as what buckets are displayed (i.e. only buckets in region specified will be listed)
                 .region(region)
+                // Will list all buckets across all regions if true - new feature added in 2.20.111
+                // https://aws.amazon.com/blogs/developer/introducing-s3-cross-region-support-in-the-aws-sdk-for-java-2-x/
+                .crossRegionAccessEnabled(true)
                 .credentialsProvider(credentialsProvider)
                 .build();
 
         logger.log(Level.DEBUG, "Listing bucket objects...");
 
         // List the buckets
-        //listBuckets(s3Client);
+        listBuckets(s3Client);
 
-        // List objects in mark-bucket-2
-        var bucketName = "marks-web";
-//        var bucketName = "fileserver-backup-ms7037";
-        //var bucketName = "cf-templates-142hd9b6p9a8s-us-west-2";
-        listBucketObjects(s3Client, bucketName);
-
+        // Test out creation of a new bucket and then delete it
         var newBucket = "mark-test-9702144567";
-        //createBucket(s3Client, newBucket);
+        createBucket(s3Client, newBucket);
+        System.out.println("Bucket exists: " + bucketExists(s3Client, newBucket));
 
+        // Put an object in the bucket
+        String file = "README.adoc";
+        putObject(s3Client, newBucket, file);
+
+        listBucketObjects(s3Client, newBucket);
+
+        deleteBucketWithObjects(s3Client, newBucket);
         s3Client.close();;
     }
 
     /**
      * List the buckets and associated regions given the provided S3Client reference.
      *
-     * Note that if a bucket is in the default region (us-east-1), then the region returned is ""
-     * or NULL
+     * With the new capability enabled by the 'crossRegionAccessEnabled', this will be able to
+     * list bucket contents in other regions than the configured region
      *
      * @param client
      */
@@ -114,16 +123,16 @@ public class Main {
         } catch (AwsServiceException ex) {
             switch (ex.statusCode()) {
                 case 301:  // Redirect (this produces an error as the correct URL is not provided)
-                    System.out.println("1-Bucket is not in the specified region");
+                    System.out.println("Bucket is not in the specified region: " + ex.getMessage());
                     break;
                 case 400:
-                    System.out.println("2-Bucket is not in the specified region");
+                    System.out.println("Bucket is not in the specified region: " + ex.getMessage());
                     break;
                 case 404:
-                    System.out.println("3-Bucket does not exist");
+                    System.out.println("Bucket does not exist");
                     break;
                 default:
-                    System.out.println("4-Error listing bucket contents: " + ex.statusCode());
+                    System.out.println("Error listing bucket contents: " + ex.statusCode());
 
             }
         } catch (SdkClientException e) {
@@ -133,16 +142,25 @@ public class Main {
 
     }
 
+    /**
+     * Creates a bucket with the specified name.
+     * Note: This will create the bucket in the region configured explicitly in the client - or the
+     * default region if not specified.
+     * This method will also check to see if the bucket already exists
+     *
+     * @param client S3 Client initialized - potentially with the target region to create bucket in
+     * @param bucketName Name of the bucket to create
+     */
     static void createBucket(S3Client client, String bucketName) {
         try {
             if (! bucketExists(client, bucketName)) {
                 S3Waiter waiter = client.waiter();
                 CreateBucketRequest bucketRequest = CreateBucketRequest.builder().bucket(bucketName).build();
                 client.createBucket(bucketRequest);
-                HeadBucketRequest bucketRequeestWait = HeadBucketRequest.builder().bucket(bucketName).build();
+                HeadBucketRequest bucketRequestWait = HeadBucketRequest.builder().bucket(bucketName).build();
 
                 // Wait for creation to finish
-                WaiterResponse<HeadBucketResponse> waiterResponse = waiter.waitUntilBucketExists(bucketRequeestWait);
+                WaiterResponse<HeadBucketResponse> waiterResponse = waiter.waitUntilBucketExists(bucketRequestWait);
                 waiterResponse.matched().response().ifPresent(System.out::println);
                 System.out.println("[" + bucketName + "] is ready");
             } else {
@@ -150,6 +168,75 @@ public class Main {
             }
         } catch (AwsServiceException exception) {
             System.err.println(exception.awsErrorDetails().errorCode());
+            System.exit(1);
+        }
+    }
+
+    /**
+     * Puts a file from the local filesystem into the specified S3 bucket
+     *
+     * @param client S3 Client already initialized
+     * @param bucketName Bucket to put object into
+     * @param filename Source filename, which will also be the 'key' of the object
+     */
+    public static void putObject(S3Client client, String bucketName, String filename) {
+
+        if (bucketExists(client, bucketName)) {
+            Path path = Paths.get(filename);
+
+            if (Files.exists(path)) {
+                try {
+                    PutObjectRequest objectRequest = PutObjectRequest.builder()
+                            .bucket(bucketName)
+                            .key(filename)
+                            .build();
+
+                    client.putObject(objectRequest, Paths.get(filename));
+                } catch (AwsServiceException ex) {
+                    System.err.println(ex.awsErrorDetails().errorCode());
+                    System.exit(1);
+                }
+            } else {
+                System.err.println("File doesn't exist: " + filename);
+            }
+
+        }
+    }
+
+    /**
+     * To delete a bucket having objects in it, you must first delete the objects, then you
+     * can delete the bucket. This code demonstrates that using the V2 SDK.
+     *
+     * @param client S3 Client reference initialized
+     * @param bucketName Bucket to delete
+     */
+    static void deleteBucketWithObjects(S3Client client, String bucketName) {
+        try {
+            if (bucketExists(client, bucketName)) {
+                // To delete a bucket, all the objects in the bucket must be deleted first.
+                ListObjectsV2Request listObjectsV2Request = ListObjectsV2Request.builder()
+                        .bucket(bucketName)
+                        .build();
+                ListObjectsV2Response listObjectsV2Response;
+
+                do {
+                    listObjectsV2Response = client.listObjectsV2(listObjectsV2Request);
+                    for (S3Object s3Object : listObjectsV2Response.contents()) {
+                        DeleteObjectRequest request = DeleteObjectRequest.builder()
+                                .bucket(bucketName)
+                                .key(s3Object.key())
+                                .build();
+                        client.deleteObject(request);
+                    }
+                } while (listObjectsV2Response.isTruncated());
+                DeleteBucketRequest deleteBucketRequest = DeleteBucketRequest.builder().bucket(bucketName).build();
+                client.deleteBucket(deleteBucketRequest);
+            } else {
+                    System.out.println("Bucket doesn't exist");
+            }
+
+        } catch (S3Exception e) {
+            System.err.println(e.awsErrorDetails().errorMessage());
             System.exit(1);
         }
     }
