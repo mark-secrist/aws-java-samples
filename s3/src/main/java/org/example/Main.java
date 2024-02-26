@@ -31,9 +31,8 @@ public class Main {
 
         // Load Region from default config file for specified profile
         var regionProvider =  new AwsProfileRegionProvider(null, profile);
-                var region = regionProvider.getRegion();
+        var region = regionProvider.getRegion();
         logger.log(Level.DEBUG, "Region = " + region);
-
         logger.log(Level.INFO, "Starting using profile - " + profile);
 
         S3Client s3Client = S3Client.builder()
