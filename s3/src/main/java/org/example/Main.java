@@ -10,6 +10,7 @@ import software.amazon.awssdk.core.waiters.WaiterResponse;
 import software.amazon.awssdk.regions.providers.AwsProfileRegionProvider;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
+import software.amazon.awssdk.services.s3.paginators.ListObjectsV2Iterable;
 import software.amazon.awssdk.services.s3.waiters.S3Waiter;
 
 import java.nio.file.Files;
@@ -59,7 +60,8 @@ public class Main {
         String file = "README.adoc";
         putObject(s3Client, newBucket, file);
 
-        listBucketObjects(s3Client, newBucket);
+        //listBucketObjects(s3Client, newBucket);
+        pagingListBucketObjects(s3Client, newBucket);
 
         deleteBucketWithObjects(s3Client, newBucket);
         s3Client.close();;
@@ -101,6 +103,15 @@ public class Main {
 
     }
 
+    static void pagingListBucketObjects(S3Client client, String bucketName) {
+        ListObjectsV2Request listReq = ListObjectsV2Request.builder()
+                .bucket(bucketName).maxKeys(1).build();
+        ListObjectsV2Iterable listRes = client.listObjectsV2Paginator(listReq);
+        // Process response pages
+        listRes.stream()
+                .flatMap(r -> r.contents().stream())
+                .forEach(content -> System.out.println(" Key: " + content.key()));
+    }
     /**
      * List objects of a given bucket
      *
@@ -240,6 +251,13 @@ public class Main {
         }
     }
 
+    /**
+     * Uses the HeadBucket S3 call to obtain the status of the bucket.
+     *
+     * @param client
+     * @param bucket
+     * @return
+     */
     static boolean bucketExists(S3Client client, String bucket) {
         HeadBucketRequest bucketRequest = HeadBucketRequest.builder().bucket(bucket).build();
         boolean result = false;
