@@ -1,6 +1,12 @@
 package com.dev2cloud.ddb_demo;
 
 import java.util.List;
+
+/**
+ * Demonstrates the use of the DynamoDB Enhanced Client API documented
+ * here: https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/dynamodb-enhanced-client.html
+ *
+ */
 public class DDBNotesApp {
     public static void main(String[] args) {
         NotesItem item = new NotesItem("student1", 1, "I love DDB-mod");

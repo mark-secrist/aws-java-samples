@@ -1,5 +1,7 @@
 package com.dev2cloud.ddb_demo;
 
+import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
+import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.*;
 
@@ -13,7 +15,18 @@ public class NotesRepository {
     private final DynamoDbClient dynamoDbClient;
 
     public NotesRepository() {
+        // Simplistic client creation
         dynamoDbClient = DynamoDbClient.create();
+        /* Alternative approach using a profile
+        dynamoDbClient = DynamoDbClient.builder()
+                .region(Region.US_WEST_2)
+                .credentialsProvider(
+                        ProfileCredentialsProvider.builder()
+                                .profileName("app-user")
+                                .build()
+                )
+                .build();
+         */
     }
 
     /**
