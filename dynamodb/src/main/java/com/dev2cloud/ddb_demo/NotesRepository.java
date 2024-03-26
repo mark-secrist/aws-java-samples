@@ -1,7 +1,5 @@
 package com.dev2cloud.ddb_demo;
 
-import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
-import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.*;
 
@@ -86,7 +84,7 @@ public class NotesRepository {
      * @param userId
      * @return
      */
-    public List<NotesItem> getNotes(String userId) {
+    public List<NotesItem> getNotesByUserid(String userId) {
         List<NotesItem> resultList = new ArrayList<>();
 
         HashMap<String, AttributeValue> attrValues = new HashMap<>();

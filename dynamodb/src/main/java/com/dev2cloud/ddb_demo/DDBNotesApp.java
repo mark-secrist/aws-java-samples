@@ -22,7 +22,7 @@ public class DDBNotesApp {
         NotesItem itemFetched2 = notesItemRepository.getItem(item2.getUserId(), item2.getNoteId());
         System.out.println(itemFetched2);
         //List<NotesItem> results = notesItemRepository.getNotesEnhanced(item.getUserId());
-        List<NotesItem> results = notesItemRepository.getNotes(item.getUserId());
+        List<NotesItem> results = notesItemRepository.getNotesByUserid(item.getUserId());
         System.out.println(results);
     }
 }
