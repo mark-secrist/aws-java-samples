@@ -37,7 +37,7 @@ public class Main {
         logger.log(Level.INFO, "Starting using profile - " + profile);
 
         S3Client s3Client = S3Client.builder()
-                // Region is optional and if specified may impact requests for list objects in S3 bucket not in
+                // Region is optional and if specified may impact requests for list objects in S3 bucket not in that region
                 // as well as what buckets are displayed (i.e. only buckets in region specified will be listed)
                 .region(region)
                 // Will list all buckets across all regions if true - new feature added in 2.20.111
