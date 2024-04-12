@@ -1,6 +1,8 @@
-= Sample overview
+= AWS Java S3 Examples
 
-Code samples to illustrate the use of the S3 SDK.
+== Introduction
+
+Code samples to illustrate the use of the S3 Java SDK.
 This set of code has been built and tested using my AWS account.
 Whatever account is used will require the following policies to be granted at
 a minimum
