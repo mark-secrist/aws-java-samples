@@ -14,18 +14,9 @@
 # take precedence
 
 [default]
-# The access key and secret key pair identify your account and grant access to AWS.
-aws_access_key_id = AKIAZW7ZYMOS4WZBUHBO
-# Treat your secret key like a password. Never share your secret key with anyone. Do
-# not post it in online forums, or store it in a source control system. If your secret
-# key is ever disclosed, immediately use IAM to delete the access key and secret key
-# and create a new key pair. Then, update this file with the replacement key details.
-aws_secret_access_key = [Keep this secret]
 region = us-west-1
 output = json
 
 [profile app-user]
-aws_access_key_id = AKIAZW7ZYMOS5SSI5EUM
-aws_secret_access_key = [Keep this secret]
 region = us-east-1
 output = json
