@@ -101,9 +101,6 @@ public class Main {
     /**
      * List the buckets and associated regions given the provided S3Client reference.
      *
-     * With the new capability enabled by the 'crossRegionAccessEnabled', this will be able to
-     * list bucket contents in other regions than the configured region
-     *
      * @param client
      */
     static void listBuckets(S3Client client) {
@@ -137,6 +134,9 @@ public class Main {
     /**
      * List the bucket contents using paging
      *
+     * With the new capability enabled by the 'crossRegionAccessEnabled', this will be able to
+     * list bucket contents in other regions than the configured region
+     *
      * @param client
      * @param bucketName
      */
@@ -152,8 +152,8 @@ public class Main {
     /**
      * List objects of a given bucket
      *
-     * Note: The bucket provided must be in the region specified on the S3Client if region is specified
-     * at all
+     * With the new capability enabled by the 'crossRegionAccessEnabled', this will be able to
+     * list bucket contents in other regions than the configured region
      *
      * @param client
      * @param bucketName
