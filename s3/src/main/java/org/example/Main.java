@@ -317,7 +317,6 @@ public class Main {
      *     PutObjectRequest objectRequest = PutObjectRequest.builder()
      *                     .bucket(bucketName)
      *                     .key(keyName)
-     *                     .metadata(metadata)
      *                     .build();
      *     PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
      *                     .signatureDuration(Duration.ofMinutes(10))  // The URL expires in 10 minutes.
