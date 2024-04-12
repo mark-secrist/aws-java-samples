@@ -7,20 +7,38 @@ import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.waiters.WaiterResponse;
+import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.regions.providers.AwsProfileRegionProvider;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
 import software.amazon.awssdk.services.s3.paginators.ListObjectsV2Iterable;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
 import software.amazon.awssdk.services.s3.waiters.S3Waiter;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 
-
+/**
+ * Main method where the core workflow of tasks is performed. This demonstrates
+ * several key points including:
+ * <ul>
+ *     <li>Setting up a client</li>
+ *     <li>List buckets</li>
+ *     <li>Creating an S3 bucket</li>
+ *     <li>Paginate operations for such things as listing buckets or listing bucket contents</li>
+ *     <li>Putting an object in a bucket</li>
+ *     <li>Generating a presigned URL</li>
+ *     <li>Deleting a bucket</li>
+ * </ul>
+ */
 public class Main {
     public static void main(String[] args) {
         Logger logger = LogManager.getLogger(Main.class);
+        /*
         var profile = "app-user";
         //var profile = "default";
 
@@ -45,6 +63,16 @@ public class Main {
                 .crossRegionAccessEnabled(true)
                 .credentialsProvider(credentialsProvider)
                 .build();
+         */
+
+        /* Alternatively, use the default credentials, which can either be set via 'aws configure' or
+           via inheriting the role's credentials from the ec2 instance or the lambda */
+        Region region = Region.US_EAST_1;
+        S3Client s3Client = S3Client.builder()
+                .region(region)
+                .crossRegionAccessEnabled(true)
+                .build();
+        /* */
 
         logger.log(Level.DEBUG, "Listing bucket objects...");
 
@@ -62,6 +90,9 @@ public class Main {
 
         //listBucketObjects(s3Client, newBucket);
         pagingListBucketObjects(s3Client, newBucket);
+
+        String presignedUrl = getSignedUrl(s3Client, newBucket, file, 3600);
+        System.out.println("\nPresigned URL: \n" + presignedUrl);
 
         deleteBucketWithObjects(s3Client, newBucket);
         s3Client.close();;
@@ -103,6 +134,12 @@ public class Main {
 
     }
 
+    /**
+     * List the bucket contents using paging
+     *
+     * @param client
+     * @param bucketName
+     */
     static void pagingListBucketObjects(S3Client client, String bucketName) {
         ListObjectsV2Request listReq = ListObjectsV2Request.builder()
                 .bucket(bucketName).maxKeys(1).build();
@@ -272,4 +309,27 @@ public class Main {
         return result;
     }
 
+    /**
+     * Generate a pre-signed URL for a given object in a specified bucket for a specified period of time.
+     *
+     * @param client
+     * @param bucketName
+     * @param objectKey
+     * @param duration Duration for the credentials to be active (in seconds)
+     * @return String representing the pre-signed URL
+     */
+    static public String getSignedUrl(S3Client client, String bucketName, String objectKey, long duration) {
+        try (S3Presigner presigner = S3Presigner.create()) {
+            GetObjectRequest objectRequest = GetObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(objectKey)
+                    .build();
+            GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
+                    .signatureDuration(Duration.ofSeconds(duration))
+                    .getObjectRequest(objectRequest)
+                    .build();
+            PresignedGetObjectRequest presignedRequest = presigner.presignGetObject(presignRequest);
+            return presignedRequest.url().toExternalForm();
+        }
+    }
 }
