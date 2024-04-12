@@ -311,6 +311,20 @@ public class Main {
 
     /**
      * Generate a pre-signed URL for a given object in a specified bucket for a specified period of time.
+     * <br>
+     * Note: If the goal is to upload a file, then a different set of Request objects is required.
+     * <pre>
+     *     PutObjectRequest objectRequest = PutObjectRequest.builder()
+     *                     .bucket(bucketName)
+     *                     .key(keyName)
+     *                     .metadata(metadata)
+     *                     .build();
+     *     PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
+     *                     .signatureDuration(Duration.ofMinutes(10))  // The URL expires in 10 minutes.
+     *                     .putObjectRequest(objectRequest)
+     *                     .build();
+     *     PresignedPutObjectRequest presignedRequest = presigner.presignPutObject(presignRequest);
+     * </pre>
      *
      * @param client
      * @param bucketName
