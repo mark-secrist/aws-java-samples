@@ -9,6 +9,7 @@ import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.waiters.WaiterResponse;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.regions.providers.AwsProfileRegionProvider;
+import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
 import software.amazon.awssdk.services.s3.paginators.ListObjectsV2Iterable;
@@ -21,6 +22,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.concurrent.ExecutionException;
 
 /**
  * Main method where the core workflow of tasks is performed. This demonstrates
@@ -72,6 +74,12 @@ public class Main {
                 .region(region)
                 .crossRegionAccessEnabled(true)
                 .build();
+        // Used for the S3Query operation
+        S3AsyncClient s3AsyncClient = S3AsyncClient.builder()
+                .region(region)
+                .crossRegionAccessEnabled(true)
+                .build();
+
         /* */
 
         logger.log(Level.DEBUG, "Listing bucket objects...");
@@ -85,17 +93,21 @@ public class Main {
         System.out.println("Bucket exists: " + bucketExists(s3Client, newBucket));
 
         // Put an object in the bucket
-        String file = "README.adoc";
+        String file = "notes.csv";
+//        String file = "README.adoc";
         putObject(s3Client, newBucket, file);
 
         //listBucketObjects(s3Client, newBucket);
         pagingListBucketObjects(s3Client, newBucket);
 
+        queryS3Object(s3AsyncClient, newBucket, file);
+
         String presignedUrl = getSignedUrl(s3Client, newBucket, file, 3600);
         System.out.println("\nPresigned URL: \n" + presignedUrl);
 
         deleteBucketWithObjects(s3Client, newBucket);
-        s3Client.close();;
+        s3Client.close();
+        ;
     }
 
     /**
@@ -133,7 +145,7 @@ public class Main {
 
     /**
      * List the bucket contents using paging
-     *
+     * <p>
      * With the new capability enabled by the 'crossRegionAccessEnabled', this will be able to
      * list bucket contents in other regions than the configured region
      *
@@ -149,9 +161,10 @@ public class Main {
                 .flatMap(r -> r.contents().stream())
                 .forEach(content -> System.out.println(" Key: " + content.key()));
     }
+
     /**
      * List objects of a given bucket
-     *
+     * <p>
      * With the new capability enabled by the 'crossRegionAccessEnabled', this will be able to
      * list bucket contents in other regions than the configured region
      *
@@ -165,7 +178,7 @@ public class Main {
             ListObjectsRequest listObjectsRequest = ListObjectsRequest.builder().bucket(bucketName).build();
             ListObjectsResponse listObjResponse = client.listObjects(listObjectsRequest);
             listObjResponse.contents().forEach(obj -> {
-                System.out.println("Key: " + obj.key() + ", Owner: " + obj.owner() + ", Size: " + obj.size()/1024 + " KBs");
+                System.out.println("Key: " + obj.key() + ", Owner: " + obj.owner() + ", Size: " + obj.size() / 1024 + " KBs");
             });
         } catch (AwsServiceException ex) {
             switch (ex.statusCode()) {
@@ -195,12 +208,12 @@ public class Main {
      * default region if not specified.
      * This method will also check to see if the bucket already exists
      *
-     * @param client S3 Client initialized - potentially with the target region to create bucket in
+     * @param client     S3 Client initialized - potentially with the target region to create bucket in
      * @param bucketName Name of the bucket to create
      */
     static void createBucket(S3Client client, String bucketName) {
         try {
-            if (! bucketExists(client, bucketName)) {
+            if (!bucketExists(client, bucketName)) {
                 S3Waiter waiter = client.waiter();
                 CreateBucketRequest bucketRequest = CreateBucketRequest.builder().bucket(bucketName).build();
                 client.createBucket(bucketRequest);
@@ -222,9 +235,9 @@ public class Main {
     /**
      * Puts a file from the local filesystem into the specified S3 bucket
      *
-     * @param client S3 Client already initialized
+     * @param client     S3 Client already initialized
      * @param bucketName Bucket to put object into
-     * @param filename Source filename, which will also be the 'key' of the object
+     * @param filename   Source filename, which will also be the 'key' of the object
      */
     public static void putObject(S3Client client, String bucketName, String filename) {
 
@@ -254,7 +267,7 @@ public class Main {
      * To delete a bucket having objects in it, you must first delete the objects, then you
      * can delete the bucket. This code demonstrates that using the V2 SDK.
      *
-     * @param client S3 Client reference initialized
+     * @param client     S3 Client reference initialized
      * @param bucketName Bucket to delete
      */
     static void deleteBucketWithObjects(S3Client client, String bucketName) {
@@ -279,7 +292,7 @@ public class Main {
                 DeleteBucketRequest deleteBucketRequest = DeleteBucketRequest.builder().bucket(bucketName).build();
                 client.deleteBucket(deleteBucketRequest);
             } else {
-                    System.out.println("Bucket doesn't exist");
+                System.out.println("Bucket doesn't exist");
             }
 
         } catch (S3Exception e) {
@@ -310,6 +323,61 @@ public class Main {
     }
 
     /**
+     * Perform an S3 select on the file, assuming the input type is CSV having the first
+     * line contain the column names or labels.
+     *
+     * @param s3AsyncClient The Async version of the S3 client
+     * @param bucket        Bucket containing the file to query
+     * @param file          File to query on, which is assumed to be a CSV file
+     */
+    static void queryS3Object(S3AsyncClient s3AsyncClient, String bucket, String file) {
+        // Perform S3 query
+        System.out.printf("Querying file: %s in bucket %s\n", file, bucket);
+        var query = "select * from s3object s where s.Notes like '%DynamoDB%'";
+        // The input serialization is important generally to call out the type of the input file,
+        // but more importantly because the above query references fields by name rather that by
+        // number and that requires the setting below: .fileHeaderInfo(FileHeaderInfo.USE), which
+        // essentially says 'use the first line of the file as a 'header' and use the labels as column names.
+        InputSerialization inputSerialization = InputSerialization.builder()
+                .csv(CSVInput.builder()
+                        .fileHeaderInfo(FileHeaderInfo.USE)
+                        .fieldDelimiter(",")
+                        .build())
+                .compressionType(CompressionType.NONE)
+                .build();
+        OutputSerialization outputSerialization = OutputSerialization.builder()
+                .json(JSONOutput.builder().build())
+                .build();
+        // Build the request
+        var request = SelectObjectContentRequest.builder()
+                .bucket(bucket)
+                .key(file)
+                .expression(query)
+                .expressionType(ExpressionType.SQL)
+                .inputSerialization(inputSerialization)
+                .outputSerialization(outputSerialization)
+                .build();
+        // Uses a 'handler' to receive the results as they are returned via the CompletableFuture
+        var handler = new S3SelectHandler();
+
+        try {
+            // The 'get()' call causes the execution to wait until the request is complete.
+            // This call is on the CompletableFuture returned by the selectObjectContent() call.
+            s3AsyncClient.selectObjectContent(request, handler).get();
+
+            // The 'getReceivedEvents()' call returns a list of the events that were received
+            // by the handler, which can then be extracted and ultimately printed out.
+            RecordsEvent response = (RecordsEvent) handler.getReceivedEvents().stream()
+                    .filter(e -> e.sdkEventType() == SelectObjectContentEventStream.EventType.RECORDS)
+                    .findFirst()
+                    .orElse(null);
+            System.out.println(response.payload().asUtf8String());
+        } catch (InterruptedException | ExecutionException e) {
+            System.out.println("Error caught: " + e.getMessage());
+        }
+    }
+
+    /**
      * Generate a pre-signed URL for a given object in a specified bucket for a specified period of time.
      * <br>
      * Note: If the goal is to upload a file, then a different set of Request objects is required.
@@ -328,7 +396,7 @@ public class Main {
      * @param client
      * @param bucketName
      * @param objectKey
-     * @param duration Duration for the credentials to be active (in seconds)
+     * @param duration   Duration for the credentials to be active (in seconds)
      * @return String representing the pre-signed URL
      */
     static public String getSignedUrl(S3Client client, String bucketName, String objectKey, long duration) {
