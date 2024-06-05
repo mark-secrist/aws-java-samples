@@ -8,10 +8,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Typical SDK calls to DynamoDB using the DynamoDB Standard Client SDK
+ */
 public class NotesRepository {
     private static final String TABLE_NAME = "Notes";
     private final DynamoDbClient dynamoDbClient;
 
+    /**
+     * Constructor - Creates and maintains a dynamoDB client connection
+     */
     public NotesRepository() {
         // Simplistic client creation
         dynamoDbClient = DynamoDbClient.create();
@@ -79,7 +85,6 @@ public class NotesRepository {
 
     /**
      * Simple query using just the partition key to find all the notes for a user
-
      *
      * @param userId
      * @return
@@ -111,4 +116,35 @@ public class NotesRepository {
 
         return resultList;
     }
+
+    public List<NotesItem> getNotesByUseridPartiQL(String userId) {
+        List<NotesItem> resultList = new ArrayList<>();
+
+        String sql = "SELECT * FROM Notes WHERE UserId = :v_UserId";
+
+        Map<String, AttributeValue> attrValues = new HashMap<>();
+        attrValues.put(":v_UserId", AttributeValue.builder().s(userId).build());
+
+        try {
+            QueryRequest request = QueryRequest.builder()
+                    .tableName(TABLE_NAME)
+                    .keyConditionExpression("UserId = :v_UserId")
+                    .expressionAttributeValues(attrValues)
+                    .build();
+
+            QueryResponse response = dynamoDbClient.query(request);
+            response.items().forEach(item -> {
+                        NotesItem notesItem = new NotesItem();
+                        notesItem.setUserId(item.get("UserId").s());
+                        notesItem.setNoteId(Integer.parseInt(item.get("NoteId").n()));
+                        notesItem.setNotes(item.get("Notes").s());
+                        resultList.add(notesItem);
+                    }
+            );
+        } catch (DynamoDbException ex) {
+            System.err.println(ex.getMessage());
+        }
+        return resultList;
+    }
+
 }
