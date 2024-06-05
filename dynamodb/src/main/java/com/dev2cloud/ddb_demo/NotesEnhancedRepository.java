@@ -58,4 +58,5 @@ public class NotesEnhancedRepository {
         PageIterable<NotesItem> results =notesTable.query(tableQuery);
         return results.items().stream().collect(Collectors.toList());
     }
+
 }
